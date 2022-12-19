@@ -89,8 +89,8 @@ protected:
         auto indexDim = index.getDimensions();
         jigsaw_alloc_edge2(&msh->_edge2, indexDim[0]);
         for(size_t i = 0; i < indexDim[0]; ++i) {
-          msh->_edge2._data[i]._node[0] = index[i][0];
-          msh->_edge2._data[i]._node[1] = index[i][1];
+          msh->_edge2._data[i]._node[0] = index[i][0] - 1;
+          msh->_edge2._data[i]._node[1] = index[i][1] - 1;
           msh->_edge2._data[i]._itag = index[i][2];
         }
       }
@@ -104,9 +104,9 @@ protected:
         auto indexDim = index.getDimensions();
         jigsaw_alloc_tria3(&msh->_tria3, indexDim[0]);
         for(size_t i = 0; i < indexDim[0]; ++i) {
-          msh->_tria3._data[i]._node[0] = index[i][0];
-          msh->_tria3._data[i]._node[1] = index[i][1];
-          msh->_tria3._data[i]._node[2] = index[i][2];
+          msh->_tria3._data[i]._node[0] = index[i][0] - 1;
+          msh->_tria3._data[i]._node[1] = index[i][1] - 1;
+          msh->_tria3._data[i]._node[2] = index[i][2] - 1;
           msh->_tria3._data[i]._itag = index[i][3];
         }
       }
@@ -211,8 +211,8 @@ protected:
       edge2[0]["index"] = factory.createArray<double>(dim);
       TypedArrayRef<double> index = edge2[0]["index"];
       for(size_t i = 0; i < dim[0]; ++i) {
-        index[i][0] = msh->_edge2._data[i]._node[0];
-        index[i][1] = msh->_edge2._data[i]._node[1];
+        index[i][0] = msh->_edge2._data[i]._node[0] + 1;
+        index[i][1] = msh->_edge2._data[i]._node[1] + 1;
         index[i][2] = msh->_edge2._data[i]._itag;
       }
     }
@@ -225,9 +225,9 @@ protected:
       tria3[0]["index"] = factory.createArray<double>(dim);
       TypedArrayRef<double> index = tria3[0]["index"];
       for(size_t i = 0; i < dim[0]; ++i) {
-        index[i][0] = msh->_tria3._data[i]._node[0];
-        index[i][1] = msh->_tria3._data[i]._node[1];
-        index[i][2] = msh->_tria3._data[i]._node[2];
+        index[i][0] = msh->_tria3._data[i]._node[0] + 1;
+        index[i][1] = msh->_tria3._data[i]._node[1] + 1;
+        index[i][2] = msh->_tria3._data[i]._node[2] + 1;
         index[i][3] = msh->_tria3._data[i]._itag;
       }
     }
@@ -235,23 +235,93 @@ protected:
     return matlabMesh;
   }
 
+  jigsaw_jig_t to_jig(const StructArray &matlabJig)
+  {
+    jigsaw_jig_t jig;
+    jigsaw_init_jig_t(&jig);
+
+    auto fields = matlabJig.getFieldNames();
+    std::vector<MATLABFieldIdentifier> fieldNames(fields.begin(), fields.end());
+
+    if(std::find(fieldNames.begin(), fieldNames.end(), MATLABFieldIdentifier("mesh_kern"))
+      != fieldNames.end()) {
+      const CharArray mesh_kern = matlabJig[0]["mesh_kern"];
+      if(mesh_kern.toAscii() == "delfront")
+        jig._mesh_kern = JIGSAW_KERN_DELFRONT;
+      else if(mesh_kern.toAscii() == "delaunay")
+        jig._mesh_kern = JIGSAW_KERN_DELAUNAY;
+    }
+
+    if(std::find(fieldNames.begin(), fieldNames.end(), MATLABFieldIdentifier("mesh_dims"))
+      != fieldNames.end()) {
+      const TypedArray<double> mesh_dims = matlabJig[0]["mesh_dims"];
+      jig._mesh_dims = mesh_dims[0];
+    }
+
+    if(std::find(fieldNames.begin(), fieldNames.end(), MATLABFieldIdentifier("optm_qlim"))
+      != fieldNames.end()) {
+      const TypedArray<double> optm_qlim = matlabJig[0]["optm_qlim"];
+      jig._optm_qlim = optm_qlim[0];
+    }
+
+    if(std::find(fieldNames.begin(), fieldNames.end(), MATLABFieldIdentifier("hfun_scal"))
+      != fieldNames.end()) {
+      const CharArray hfun_scal = matlabJig[0]["hfun_scal"];
+      if(hfun_scal.toAscii() == "relative")
+        jig._hfun_scal = JIGSAW_HFUN_RELATIVE;
+      else if(hfun_scal.toAscii() == "absolute")
+        jig._hfun_scal = JIGSAW_HFUN_ABSOLUTE;
+    }
+
+    if(std::find(fieldNames.begin(), fieldNames.end(), MATLABFieldIdentifier("hfun_hmax"))
+      != fieldNames.end()) {
+      const TypedArray<double> hfun_hmax = matlabJig[0]["hfun_hmax"];
+      jig._hfun_hmax = hfun_hmax[0];
+    }
+
+    if(std::find(fieldNames.begin(), fieldNames.end(), MATLABFieldIdentifier("geom_feat"))
+      != fieldNames.end()) {
+      const TypedArray<bool> geom_feat = matlabJig[0]["geom_feat"];
+      jig._geom_feat = geom_feat[0];
+    }
+
+    if(std::find(fieldNames.begin(), fieldNames.end(), MATLABFieldIdentifier("mesh_top1"))
+      != fieldNames.end()) {
+      const TypedArray<bool> mesh_top1 = matlabJig[0]["mesh_top1"];
+      jig._mesh_top1 = mesh_top1[0];
+    }
+
+    return jig;
+  }
+
 public:
   void operator()(matlab::mex::ArgumentList outputs, matlab::mex::ArgumentList inputs) {
     checkArguments(outputs, inputs);
 
+    auto jig = to_jig(inputs[0]);
+
     jigsaw_msh_t * geom = to_msh(inputs[1]);
-    jigsaw_msh_t * init = (inputs.size() >= 3) ? to_msh(inputs[2]) : nullptr;
-    jigsaw_msh_t * hfun = (inputs.size() >= 4) ? to_msh(inputs[3]) : nullptr;
+    jigsaw_msh_t * init = (inputs.size() >= 3 && inputs[2].getNumberOfElements() >= 1) ? to_msh(inputs[2]) : nullptr;
+    jigsaw_msh_t * hfun = (inputs.size() >= 4 && inputs[3].getNumberOfElements() >= 1) ? to_msh(inputs[3]) : nullptr;
 
-    outputs[0] = from_msh(geom);
+    // outputs[0] = from_msh(geom);
+    jigsaw_msh_t mesh;
+    jigsaw_init_msh_t(&mesh);
+    auto ret = jigsaw(&jig, geom, init, hfun, &mesh);
 
+    if(outputs.size() >= 1)
+      outputs[0] = from_msh(&mesh);
+    if(outputs.size() >= 2)
+      outputs[1] = factory.createScalar<double>(ret);
+
+    jigsaw_free_msh_t(&mesh);
     jigsaw_free_msh_t(geom); delete geom;
     if(init) { jigsaw_free_msh_t(init); delete init; }
     if(hfun) { jigsaw_free_msh_t(hfun); delete hfun; }
   }
 
   void checkArguments(matlab::mex::ArgumentList outputs, matlab::mex::ArgumentList inputs) {
-    if (inputs.size() < 2 || outputs.size() != 1) {
+    if (inputs.size() < 2 || outputs.size() > 2) {
         matlabPtr->feval(u"error", 
             0, std::vector<matlab::data::Array>({ factory.createScalar("Invalid intput or output.") }));
     }

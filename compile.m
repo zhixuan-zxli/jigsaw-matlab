@@ -59,6 +59,17 @@ function compile
 
     end
 
+  % Compile jigsaw_mex
+  cc = mex.getCompilerConfigurations('C++', 'installed');
+  if contains(cc.Name, 'mingw', 'IgnoreCase', true)
+    libname = 'jigsaw.dll';
+  else
+    libname = 'jigsaw';
+  end
+  mex('CXXFLAGS="$CXXFLAGS -std=c++14"', 'jigsaw_mex.cpp', ...
+    '-Iexternal/jigsaw/inc', '-Lexternal/jigsaw/lib', ...
+    ['-l' libname], '-outdir', 'external/jigsaw/lib');
+
 end
 
 

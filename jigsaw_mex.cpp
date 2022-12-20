@@ -279,6 +279,12 @@ protected:
       jig._hfun_hmax = hfun_hmax[0];
     }
 
+    if(std::find(fieldNames.begin(), fieldNames.end(), MATLABFieldIdentifier("hfun_hmin"))
+      != fieldNames.end()) {
+      const TypedArray<double> hfun_hmin = matlabJig[0]["hfun_hmin"];
+      jig._hfun_hmin = hfun_hmin[0];
+    }
+
     if(std::find(fieldNames.begin(), fieldNames.end(), MATLABFieldIdentifier("geom_feat"))
       != fieldNames.end()) {
       const TypedArray<bool> geom_feat = matlabJig[0]["geom_feat"];

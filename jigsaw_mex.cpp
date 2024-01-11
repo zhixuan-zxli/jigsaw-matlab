@@ -104,9 +104,9 @@ protected:
         auto indexDim = index.getDimensions();
         jigsaw_alloc_bound(&msh->_bound, indexDim[0]);
         for(size_t i = 0; i < indexDim[0]; ++i) {
-          msh->_bound._data[i]._kind = index[i][0] - 1;
+          msh->_bound._data[i]._itag = index[i][0];
           msh->_bound._data[i]._indx = index[i][1] - 1;
-          msh->_bound._data[i]._itag = index[i][2];
+          msh->_bound._data[i]._kind = index[i][2];
         }
       }
 
